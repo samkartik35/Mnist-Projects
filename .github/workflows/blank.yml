@@ -1,0 +1,70 @@
+import cv2
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import datasets, layers, models
+
+# Load the MNIST dataset
+(train_images, train_labels), (test_images, test_labels) = datasets.mnist.load_data()
+
+# Preprocess the data
+train_images = train_images.reshape((60000, 28, 28, 1)).astype('float32') / 255
+test_images = test_images.reshape((10000, 28, 28, 1)).astype('float32') / 255
+
+# Define the model
+model = models.Sequential([
+    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(10, activation='softmax')
+])
+
+# Compile the model
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train the model
+model.fit(train_images, train_labels, epochs=5, 
+          validation_data=(test_images, test_labels))
+
+# Use OpenCV to capture video from the webcam
+cap = cv2.VideoCapture(0)
+
+while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
+
+    # Convert the frame to grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Resize the frame to 28x28 pixels
+    resized = cv2.resize(gray, (28, 28))
+
+    # Normalize the frame
+    normalized = resized.astype('float32') / 255
+
+    # Reshape the frame to match the model input
+    reshaped = np.reshape(normalized, (1, 28, 28, 1))
+
+    # Make predictions using the trained model
+    predictions = model.predict(reshaped)
+    predicted_digit = np.argmax(predictions)
+
+    # Display the predicted digit on the frame
+    cv2.putText(frame, f'Predicted Digit: {predicted_digit}', (10, 30), 
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+    # Display the resulting frame
+    cv2.imshow('Webcam Digit Recognition', frame)
+
+    # Break the loop on 'q' key press
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# When everything is done, release the capture and close windows
+cap.release()
+cv2.destroyAllWindows()
